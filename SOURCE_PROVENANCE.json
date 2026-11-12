@@ -1,0 +1,39 @@
+{
+  "source": "Verified native Beads browser snapshot prototype; no workspace data imported.",
+  "beads": "v1.2.2",
+  "beadsCommit": "6c124203e771433a3550c348771a5b5e27fd3c21",
+  "files": [
+    {
+      "path": "engine/beads.go",
+      "importedSha256": "062c4f93c7410fc4b119eb85c7428c5dc0ac7b9b1305a0ea7bbea40d19f58274"
+    },
+    {
+      "path": "engine/decode.go",
+      "importedSha256": "0339b82151c86be49393739130c2530a83cc716a74c4943654561c749e4f3ad3"
+    },
+    {
+      "path": "engine/driver.go",
+      "importedSha256": "07cc3cb3143f6ebd9e71ac19ee0899dc0018f00598d8d33a8b8a64ca9a1dba02"
+    },
+    {
+      "path": "engine/provider.go",
+      "importedSha256": "66b9088f7b2cd0bb9e77ec530745b008c584aa5c65d61a801f96bacd6289fde5"
+    },
+    {
+      "path": "engine/query.go",
+      "importedSha256": "14c6463e64bd1377c9944087486c7ee3e461acb79f533e484d10098a9f17fae5"
+    },
+    {
+      "path": "engine/snapshot.go",
+      "importedSha256": "e595e62e523e5568cc6d48e304685ff19d346e1ecdef23b60a4d45dca4b201a0"
+    },
+    {
+      "path": "engine/store.go",
+      "importedSha256": "cec99f115d252f7818d21a96192ab77db5c2f6e9cd7cb9d1ae85cab3e87ac0e9"
+    },
+    {
+      "path": "engine/main_js.go",
+      "importedSha256": "caa61541ce4163ffa541e25f87c72a5724760b59694e829ecedd4fa25ae5b6ac"
+    }
+  ]
+}

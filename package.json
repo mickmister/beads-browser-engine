@@ -1,0 +1,25 @@
+{
+  "name": "@mickmister/beads-browser-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "tsc --noEmit",
+    "fixture": "node scripts/fixture.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "playwright test",
+    "publish:s3": "node scripts/publish.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "aws4fetch": "1.0.20",
+    "fast-xml-parser": "5.12.0"
+  }
+}

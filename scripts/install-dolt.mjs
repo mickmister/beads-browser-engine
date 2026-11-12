@@ -1,0 +1,11 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+if(process.platform!=='linux'||process.arch!=='x64')throw new Error('Native fixture installer requires Linux x64; browser artifacts are portable wasm32');
+await mkdir('.cache/dolt',{recursive:true});
+const response=await fetch('https://github.com/dolthub/dolt/releases/download/v2.3.1/dolt-linux-amd64.tar.gz');if(!response.ok)throw new Error('Dolt download failed');
+const bytes=Buffer.from(await response.arrayBuffer());
+if(createHash('sha256').update(bytes).digest('hex')!=='0a2a318f27c5e1088a2883038573c2054e00f356dc9752e74bca934f8321959a')throw new Error('Dolt archive integrity failure');
+await writeFile('.cache/dolt.tar.gz',bytes);
+execFileSync('tar',['-xzf','.cache/dolt.tar.gz','-C','.cache/dolt','--strip-components=2','dolt-linux-amd64/bin/dolt'],{stdio:'inherit'});
+console.log('Pinned Dolt 2.3.1 installed in .cache/dolt');
