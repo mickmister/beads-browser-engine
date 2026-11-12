@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {readFile} from 'node:fs/promises';
+import {readFile,writeFile} from 'node:fs/promises';
 const cases=JSON.parse(await readFile('build/browser-fixture/cases.json','utf8'));
 const release=JSON.parse(await readFile('dist/manifest.json','utf8'));
 async function prepare(page){
@@ -29,7 +29,9 @@ test('same wasm32 artifact matches native Beads for complete records, filters, r
  });expect(rejected).toEqual([true,true,true]);
  expect(await page.evaluate(request=>window.engine.query(request),cases[0].request)).toEqual(cases[0].expected);
  const state=await page.evaluate(()=>window.engine.state());expect(state.putRejected).toBe(true);expect(state.commitRejected).toBe(true);expect(state.sealed).toBe(true);
- await testInfo.attach('engine-evidence',{body:JSON.stringify({browser:testInfo.project.name,host:process.arch,sourceCommit:release.sourceCommit,wasm:release.files.find(file=>file.path==='engine.wasm'),fixtureCommit:snapshot.commit,cases:cases.length,startupAndQueriesMs:Date.now()-started,state},null,2),contentType:'application/json'});
+ const evidence=testInfo.outputPath('engine-evidence.json');
+ await writeFile(evidence,JSON.stringify({browser:testInfo.project.name,host:process.arch,sourceCommit:release.sourceCommit,wasm:release.files.find(file=>file.path==='engine.wasm'),fixtureCommit:snapshot.commit,cases:cases.length,startupAndQueriesMs:Date.now()-started,state},null,2));
+ await testInfo.attach('engine-evidence',{path:evidence,contentType:'application/json'});
  await page.evaluate(()=>window.engine.dispose());expect(errors).toEqual([]);
 });
 test('rejects corrupt snapshot identities and cancellation destroys the isolated runtime',async({page})=>{
