@@ -14,16 +14,16 @@ async function fixture(){
  const files=[];for(const [path,bytes]of Object.entries(contents)){await writeFile(`${directory}/${path}`,bytes);files.push({path,size:bytes.length,sha256:sha(bytes)});}
  await writeFile(`${directory}/manifest.json`,JSON.stringify({schemaVersion:1,apiVersion:1,target:'js/wasm',readOnly:true,sourceCommit:'1'.repeat(40),files}));
  const service=await mockS3();
- return{directory,...service,get cors(){return service.cors},env:{...service.env,ENGINE_EXPECTED_SHA:'1'.repeat(40)},async close(){await service.close();await rm(directory,{recursive:true,force:true});}};
+ return{directory,...service,env:{...service.env,ENGINE_EXPECTED_SHA:'1'.repeat(40)},async close(){await service.close();await rm(directory,{recursive:true,force:true});}};
 }
-test('publishes signed conditional objects, preserves CORS, verifies compressed/public bytes, and replays without overwrites',async()=>{
+test('publishes with object-only permissions, verifies compressed/public bytes and CORS, and replays without overwrites',async()=>{
  const f=await fixture();try{
   f.race();const receipt=await publish({env:f.env,directory:f.directory,receiptPath:f.directory+'/receipt.json'});
   assert.equal(receipt.verifiedFiles,9);assert.equal(receipt.publicDeliveryVerified,true);
-  assert.ok(f.cors.includes('another-app'));assert.ok(f.cors.includes('beads-browser-engine-'));
+  assert.deepEqual(f.bucketRequests,[],'Publisher must not read or write bucket configuration');
   assert.equal(f.puts.at(-1),'prefix/commits/'+ '1'.repeat(40)+'/manifest.json');
   const wasm=f.objects.get('prefix/commits/'+ '1'.repeat(40)+'/engine.wasm');assert.equal(wasm.headers['content-encoding'],'gzip');assert.equal(wasm.headers['content-type'],'application/wasm');
-  const count=f.puts.length;await publish({env:f.env,directory:f.directory,receiptPath:f.directory+'/receipt.json'});assert.equal(f.puts.length,count);
+  const count=f.puts.length;await publish({env:f.env,directory:f.directory,receiptPath:f.directory+'/receipt.json'});assert.equal(f.puts.length,count);assert.deepEqual(f.bucketRequests,[]);
   assert.ok(!(await readFile(f.directory+'/receipt.json','utf8')).includes('test-secret'));
   const worker=f.objects.get('prefix/commits/'+ '1'.repeat(40)+'/worker.js');worker.bytes=Buffer.from('wrong');
   await assert.rejects(publish({env:f.env,directory:f.directory,receiptPath:f.directory+'/receipt.json'}),/Immutable release collision/);

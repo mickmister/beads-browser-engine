@@ -1,5 +1,4 @@
 import { AwsClient } from 'aws4fetch';
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -50,19 +49,7 @@ export async function publish({env=process.env,directory=resolve('dist'),fetcher
       await new Promise(resolve=>setTimeout(resolve,Math.max(0,wait)));
     }
   }
-  // Merge only our managed CORS rule; preserve other applications' bucket rules.
-  const corsURL=objectURL('')+'?cors';
-  const existing=await request(corsURL);
-  let rules=[];
-  if(existing.ok){const xml=new XMLParser({ignoreAttributes:false,removeNSPrefix:true}).parse((await bounded(existing,1<<20)).toString());const found=xml.CORSConfiguration?.CORSRule;rules=found?(Array.isArray(found)?found:[found]):[];}
-  else if(existing.status!==404)throw new Error(`Unable to read bucket CORS (${existing.status})`);
-  else await existing.body?.cancel();
-  const ruleId='beads-browser-engine-'+hash(Buffer.from(config.prefix)).slice(0,16);
-  rules=rules.filter(rule=>rule.ID!==ruleId);
-  rules.push({ID:ruleId,AllowedOrigin:config.origins,AllowedMethod:['GET','HEAD'],AllowedHeader:['*'],ExposeHeader:['Content-Length','Content-Encoding','ETag'],MaxAgeSeconds:3600});
-  const corsBody=new XMLBuilder({ignoreAttributes:false}).build({CORSConfiguration:{'@_xmlns':'http://s3.amazonaws.com/doc/2006-03-01/',CORSRule:rules}});
-  const configured=await request(corsURL,{method:'PUT',body:corsBody,headers:{'content-type':'application/xml','content-md5':createHash('md5').update(corsBody).digest('base64')}});
-  if(!configured.ok)throw new Error(`Unable to configure bucket CORS (${configured.status})`);await configured.body?.cancel();
+  // Bucket configuration is operator-managed; credentials only need object access.
   const release=`commits/${manifest.sourceCommit}`;
   async function upload(file,bytes,encoding) {
     const url=objectURL(`${config.prefix}/${release}/${file.path}`);

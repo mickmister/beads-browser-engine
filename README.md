@@ -157,16 +157,33 @@ there are no repository-variable fallbacks or built-in server destinations.
 | `S3_BUCKET` | Existing bucket name. |
 | `S3_KEY_PREFIX` | Nonempty object prefix, e.g. `beads-engine` (no leading slash). |
 | `S3_PUBLIC_BASE_URL` | HTTPS delivery root that **already maps to the bucket and key prefix**, e.g. `https://assets.example.com/beads-engine/`. |
-| `S3_CORS_ALLOWED_ORIGINS` | JSON array, e.g. `["https://app.example.com"]`; `['*']` must instead be valid JSON `["*"]` if wildcard access is intended. |
+| `S3_CORS_ALLOWED_ORIGINS` | JSON array of origins for public CORS verification, e.g. `["https://app.example.com"]` or `["*"]`. This does not configure bucket CORS. |
 | `S3_ACCESS_KEY_ID` | S3-compatible access key. |
 | `S3_SECRET_ACCESS_KEY` | Matching secret key. |
 | `S3_SESSION_TOKEN` | Optional temporary-credential token; omit for ordinary R2 keys. |
 
-Credentials need object read/write under the prefix and bucket CORS read/write
-permissions. The workflow merges a prefix-specific managed CORS rule, preserving
-unrelated rules. Provision public delivery separately: the publisher does not
-create a bucket, custom domain or public-access policy. R2's private S3 endpoint
-is not its public delivery URL. A custom-domain path rewrite is allowed provided
+Credentials need only object read/write under the prefix. For R2, use **Object
+Read & Write** credentials scoped to the bucket. Configure CORS yourself in
+**Cloudflare → R2 → your bucket → Settings → CORS policy**, matching the origins
+in `S3_CORS_ALLOWED_ORIGINS`. For the GitHub Pages application:
+
+```json
+[
+  {
+    "AllowedOrigins": ["https://mickmister.github.io"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["Content-Length", "Content-Encoding", "ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+Merge this rule with any existing rules needed by other applications. The
+publisher never reads or writes bucket configuration; it verifies CORS headers
+on actual public asset responses. Provision public delivery separately: the
+publisher does not create a bucket, custom domain or public-access policy. R2's
+private S3 endpoint is not its public delivery URL. A custom-domain path rewrite is allowed provided
 the public base maps exactly to the configured prefix.
 
 In **Actions → Publish verified engine to S3 → Run workflow**, choose the source
@@ -191,7 +208,8 @@ than overwrite history. `engine.wasm` is served as gzip-encoded
 Success requires signed readback and actual public GETs verifying every file's
 raw hash, MIME, immutable cache headers, CORS and WASM gzip encoding. A proxy/CDN
 must preserve these headers. Some S3 implementations may reject conditional
-PUT or bucket CORS operations; those failures are reported, not bypassed.
+PUT; those failures are reported, not bypassed. Missing public CORS headers also
+fail verification; correct the operator-managed policy before retrying.
 
 Download the `verified-publication` artifact for `publication.json`: exact source
 SHA, release path, manifest SHA-256, verified file count and verification flags.
