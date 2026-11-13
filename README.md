@@ -116,7 +116,7 @@ The host provides an authenticated, revision-pinned descriptor:
 ```ts
 {
   apiVersion: 1,
-  commit: string, // 32-character Dolt commit hash
+  commit?: string, // optional expected 32-character Dolt commit hash
   manifest: { url: string, size: number, sha256: string },
   files: [{ url: string, size: number, sha256: string }],
 }
@@ -130,6 +130,11 @@ synthetic native database. Production snapshot export and host authorization are
 the caller's responsibility. Hashes must originate from trusted pinned metadata;
 fetching untrusted hashes alongside untrusted bytes does not authenticate them.
 
+If `commit` is omitted, the engine derives `refs/heads/main` from the verified
+native storage root and returns the resolved Dolt commit. This is useful when
+the host already pins the complete manifest/files through an authenticated Git
+snapshot. An explicit expected `commit` is always checked when supplied.
+
 All asset/snapshot requests omit cookies. Use public or explicitly signed URLs
 and allow the application origin through CORS. Secure context/Web Crypto, Workers
 and WebAssembly are required. CSP must permit the asset/snapshot origins in
@@ -138,7 +143,7 @@ Blob runtime scripts and WASM compilation (`script-src blob: 'wasm-unsafe-eval'`
 subject to browser support). The SDK verifies and constructs the Worker from a
 Blob so CDN assets can live on another origin.
 
-Current safety bounds: 128 MiB WASM, 512 snapshot files, 32 MiB per encoded native
+Current safety bounds: 128 MiB WASM, 512 snapshot files, 64 MiB per encoded native
 file, 64 MiB aggregate encoded snapshot data, 256 MiB decoded chunk store,
 100,000 chunks, 1 MiB request JSON and 10,000 SQL result rows. These are admission
 limits, not a total browser memory cap. Worker disposal releases the runtime;

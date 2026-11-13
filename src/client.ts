@@ -1,5 +1,6 @@
 export interface FileReference { url: string; size: number; sha256: string }
-export interface SnapshotReference { apiVersion: 1; commit: string; manifest: FileReference; files: FileReference[] }
+/** Omit commit to derive refs/heads/main from the verified native storage root. */
+export interface SnapshotReference { apiVersion: 1; commit?: string; manifest: FileReference; files: FileReference[] }
 export interface BeadsRequest {
   operation: 'list' | 'ready' | 'blocked';
   query?: string;

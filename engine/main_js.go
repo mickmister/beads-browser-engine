@@ -38,7 +38,7 @@ func main() {
 			return map[string]any{"error": "invalid load state: immutable or failed snapshot"}
 		}
 		size := args[0].Get("byteLength").Int()
-		if size <= 0 || size > 32<<20 {
+		if size <= 0 || size > 64<<20 {
 			failed = true
 			return map[string]any{"error": "invalid file bound"}
 		}

@@ -27,9 +27,9 @@
       state='loading';
       try {
         const snapshot=value.snapshot;
-        if(snapshot?.apiVersion!==1 || !/^[0-9a-v]{32}$/.test(snapshot.commit) || !Array.isArray(snapshot.files) || !snapshot.files.length || snapshot.files.length>512)throw new Error('Invalid snapshot descriptor');
+        if(snapshot?.apiVersion!==1 || snapshot.commit!==undefined&&!/^[0-9a-v]{32}$/.test(snapshot.commit) || !Array.isArray(snapshot.files) || !snapshot.files.length || snapshot.files.length>512)throw new Error('Invalid snapshot descriptor');
         let total=0;const urls=new Set<string>();
-        for(const file of snapshot.files){if(!Number.isSafeInteger(file.size)||file.size<=0||file.size>32<<20||urls.has(file.url))throw new Error('Invalid snapshot file');total+=file.size;urls.add(file.url);}
+        for(const file of snapshot.files){if(!Number.isSafeInteger(file.size)||file.size<=0||file.size>64<<20||urls.has(file.url))throw new Error('Invalid snapshot file');total+=file.size;urls.add(file.url);}
         if(total>64<<20)throw new Error('Encoded snapshot exceeds 64 MiB');
         const runtime=await verified(value.assets.runtime,256<<10), url=URL.createObjectURL(new Blob([runtime],{type:'text/javascript'}));
         try{importScripts(url);}finally{URL.revokeObjectURL(url);}
@@ -37,9 +37,9 @@
         const {instance}=await WebAssembly.instantiate(await verified(value.assets.wasm,128<<20),go.importObject);
         void go.run(instance).catch(error=>{state='failed';postMessage({apiVersion:1,id:0,error:String(error)});});
         if(typeof scope.snapshotLoad!=='function')throw new Error('Runtime initialization failed');
-        for(const file of snapshot.files)result(scope.snapshotLoad(await verified(file,32<<20)));
+        for(const file of snapshot.files)result(scope.snapshotLoad(await verified(file,64<<20)));
         const metadata=result(scope.snapshotOpen(new TextDecoder('utf-8',{fatal:true}).decode(await verified(snapshot.manifest,1<<20))));
-        if(metadata.commit!==snapshot.commit)throw new Error('Dolt commit identity mismatch');
+        if(snapshot.commit!==undefined&&metadata.commit!==snapshot.commit)throw new Error('Dolt commit identity mismatch');
         state='ready';return metadata;
       }catch(error){state='failed';throw error;}
     }

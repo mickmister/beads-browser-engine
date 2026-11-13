@@ -41,3 +41,11 @@ test('rejects corrupt snapshot identities and cancellation destroys the isolated
  await prepare(page);
  expect(await page.evaluate(async()=>{const controller=new AbortController();const pending=window.engine.open(window.snapshot,controller.signal);controller.abort();try{await pending;return false;}catch{try{await window.engine.state();return false;}catch{return true;}}})).toBe(true);
 });
+test('derives the native head from a verified storage manifest and still rejects an incorrect explicit head',async({page})=>{
+ await prepare(page);
+ const expected=await page.evaluate(()=>window.snapshot.commit);
+ expect(await page.evaluate(async()=>{delete window.snapshot.commit;return (await window.engine.open(window.snapshot)).commit;})).toBe(expected);
+ await page.evaluate(()=>window.engine.dispose());
+ await prepare(page);
+ expect(await page.evaluate(async()=>{window.snapshot.commit='0'.repeat(32);try{await window.engine.open(window.snapshot);return '';}catch(error){return error.message;}})).toContain('commit identity mismatch');
+});
