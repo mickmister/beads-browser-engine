@@ -37,3 +37,10 @@ test('fails on missing secrets, local corruption, wrong commit, or missing publi
  }finally{await f.close();}
  const cors=await fixture();try{cors.badCors();await assert.rejects(publish({env:cors.env,directory:cors.directory,receiptPath:cors.directory+'/receipt.json'}),/CORS verification failed/);}finally{await cors.close();}
 });
+test('identifies API versus public network failures without exposing configured destinations or credentials',async()=>{
+ const f=await fixture();try{
+  const failure=()=>{throw new TypeError('fetch failed '+f.env.S3_SECRET_ACCESS_KEY,{cause:{code:'ENOTFOUND',hostname:'private-host.invalid'}});};
+  await assert.rejects(publish({env:f.env,directory:f.directory,fetcher:failure}),{message:'S3 API network request failed (ENOTFOUND)'});
+  await assert.rejects(publish({env:f.env,directory:f.directory,fetcher:(input,init)=>String(input instanceof Request?input.url:input).includes('/public/')?failure():fetch(input,init)}),{message:'Public delivery network request failed (ENOTFOUND)'});
+ }finally{await f.close();}
+});

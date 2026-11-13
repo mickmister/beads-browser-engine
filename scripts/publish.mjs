@@ -37,7 +37,13 @@ export async function publish({env=process.env,directory=resolve('dist'),fetcher
   for(const name of ['engine.wasm','engine.wasm.gz','wasm_exec.js','worker.js','client.js','client.d.ts','LICENSE','licenses.json'])if(!names.has(name))throw new Error(`Missing release asset ${name}`);
   const client=new AwsClient({accessKeyId:config.accessKeyId,secretAccessKey:config.secretAccessKey,sessionToken:config.sessionToken,service:'s3',region:config.region,retries:0});
   const objectURL=key=>new URL(`/${encodeURIComponent(config.bucket)}/${key.split('/').map(encodeURIComponent).join('/')}`,config.endpoint).href;
-  async function signed(url,init={}){const request=await client.sign(url,init);return fetcher(request);}
+  async function remote(input,init,label){
+    try{return await fetcher(input,init);}catch(error){
+      const code=error?.cause?.code;
+      throw new Error(`${label} network request failed${typeof code==='string'&&/^[A-Z0-9_]+$/.test(code)?` (${code})`:''}`);
+    }
+  }
+  async function signed(url,init={}){const request=await client.sign(url,init);return remote(request,undefined,'S3 API');}
   async function request(url,init={}) {
     for(let attempt=0;;attempt++){
       const response=await signed(url,init);
@@ -71,7 +77,7 @@ export async function publish({env=process.env,directory=resolve('dist'),fetcher
   for(const file of [...manifest.files,{path:'manifest.json',size:manifestBytes.length,sha256:hash(manifestBytes)}]){
     let response;
     for(let attempt=0;attempt<6;attempt++){
-      response=await fetcher(new URL(file.path,base),{headers:{origin}});
+      response=await remote(new URL(file.path,base),{headers:{origin}},'Public delivery');
       if(response.ok)break;
       const status=response.status;await response.body?.cancel();if(![404,429,500,502,503,504].includes(status)||attempt===5)throw new Error(`Public delivery unavailable (${status})`);
       const retry=Number(response.headers.get('retry-after'));await new Promise(resolve=>setTimeout(resolve,Number.isFinite(retry)&&retry>0?Math.min(retry*1000,60000):1000*2**attempt));
