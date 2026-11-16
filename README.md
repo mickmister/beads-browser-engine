@@ -67,6 +67,44 @@ The HTTP publisher selftest uploads the actual release bytes, checks signed and
 public readback, gzip, CORS and immutable replay using a loopback S3 test server.
 It is not a test against Cloudflare or AWS credentials.
 
+### Opt-in workspace history comparison
+
+The local profiler compares the complete native snapshot with a derived pack of
+chunks reachable from the current database root, plus opening metadata, without
+following commit parents. It also repacks the complete chunk set using the same
+NBS/Snappy encoder to distinguish history removal from compression changes.
+This is an experiment for this read engine, not a replacement Dolt remote or a
+production exporter. Canonical remote data is read only.
+
+Use an authenticated Git connection and an exact commit from the workspace's
+`refs/dolt/<workspace>` ref. Choose a fresh private output directory **outside this
+repository**; it contains actual private database bytes. These commands must not
+be added to CI artifact uploads:
+
+```sh
+node scripts/benchmark-workspace.mjs "$PRIVATE_DIRECTORY" owner/storage "$PINNED_GIT_COMMIT"
+BEADS_PROFILE_DIRECTORY="$PRIVATE_DIRECTORY" GOTOOLCHAIN=go1.26.2 \
+  CGO_ENABLED=0 GOMAXPROCS=2 go test -tags=gms_pure_go -p 2 ./engine \
+  -run TestWorkspaceReadProfile -count=1 -v -timeout=25m
+# Requires an existing verified dist/ release and installed Chromium.
+node scripts/benchmark-browser.mjs "$PRIVATE_DIRECTORY"
+node scripts/summarize-profile.mjs "$PRIVATE_DIRECTORY"
+```
+
+The native test takes five unchanged controls and six interleaved rounds per arm;
+the browser probe takes one warmup per arm, five unchanged controls and six paired
+comparisons, with a fresh Worker each time. Complete issue objects are compared as
+sorted multisets (SQL tie order is not a record difference), and writes remain
+rejected. Reports contain counts, hashes and timings rather than issue bodies.
+Browser timings include loopback snapshot/asset transfer and initialization, not
+the hosted GitHub REST broker or user-device/network latency. Heap observations
+are end-of-run Go heap allocation, not peak or total browser memory.
+
+The summarizer optionally accepts a public immutable release base URL and its
+manifest SHA-256 as the third/fourth process arguments. It checks local executable
+asset bytes against that release and records any local manifest-source discrepancy
+without rewriting the original evidence.
+
 ## Browser API
 
 Serve/import `client.js` as an ES module. Its generated `client.d.ts` contains
