@@ -57,7 +57,7 @@ jobs:
           if-no-files-found: ignore
   browsers:
     needs: build
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -83,6 +83,14 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: engine-build
+      - name: Use HTTPS Ubuntu package mirrors
+        if: runner.os == 'Linux'
+        run: |
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do
+            if test -f "$source"; then
+              sudo sed -i -E 's@http://([a-z0-9-]+\.)?ec2\.archive\.ubuntu\.com/ubuntu/?@https://archive.ubuntu.com/ubuntu/@g; s@http://archive\.ubuntu\.com/ubuntu/?@https://archive.ubuntu.com/ubuntu/@g; s@http://security\.ubuntu\.com/ubuntu/?@https://security.ubuntu.com/ubuntu/@g' "$source"
+            fi
+          done
       - run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Verify identical release bytes in this browser/host
         env:
