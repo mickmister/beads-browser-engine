@@ -59,6 +59,10 @@ The same release artifact is tested in Chromium, Firefox and WebKit on Linux and
 WebKit on `macos-latest`. Evidence records `process.arch` rather than assuming
 the macOS host's CPU. Tests cover ordered results, null/empty distinctions,
 read-only enforcement, invalid input, file corruption, cancellation and replay.
+Classic Worker script Blob URLs remain valid until startup is acknowledged;
+WebKit may fetch the script after the Worker constructor returns. The SDK releases
+the URL on its first valid reply or on startup error, timeout or disposal. Call
+`dispose()` even when abandoning an engine before opening a snapshot.
 Browser evidence includes heap/chunk statistics and fixture-scale timing; this
 is not production-scale memory/performance acceptance. Linux WebKit is not a
 claim of packaged Safari or iOS acceptance.

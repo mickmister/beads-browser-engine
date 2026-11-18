@@ -32,9 +32,10 @@ export class BeadsBrowserEngine {
   private pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void }>();
   private closed = false;
   private opened = false;
-  private constructor(private worker: Worker, private assets: { wasm: FileReference; runtime: FileReference }, private timeoutMs: number) {
+  private constructor(private worker: Worker, private assets: { wasm: FileReference; runtime: FileReference }, private timeoutMs: number, private workerURL?: string) {
     worker.onmessage = event => {
       if (event.data?.apiVersion !== 1) return;
+      this.releaseWorkerURL();
       if (event.data.id === 0 && event.data.error) { this.stop(new Error('Engine runtime failed')); return; }
       const pending = this.pending.get(event.data.id);
       if (!pending) return;
@@ -60,11 +61,16 @@ export class BeadsBrowserEngine {
     if (entry.size > 256<<10) throw new Error('Worker exceeds size bound');
     const code = await download(entry.url, entry.size);
     if (code.length !== entry.size || await digest(code) !== entry.sha256) throw new Error('Worker identity mismatch');
+    const assets = { wasm:file('engine.wasm'), runtime:file('wasm_exec.js') };
     const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
-    try { return new BeadsBrowserEngine(new Worker(url), { wasm:file('engine.wasm'), runtime:file('wasm_exec.js') }, options.timeoutMs ?? 120000); }
-    finally { URL.revokeObjectURL(url); }
+    // WebKit can fetch the classic Worker script asynchronously after the
+    // constructor returns. Retain its Blob URL until the first valid reply;
+    // disposal, timeout and startup errors release it as well.
+    try { return new BeadsBrowserEngine(new Worker(url), assets, options.timeoutMs ?? 120000, url); }
+    catch (error) { URL.revokeObjectURL(url); throw error; }
   }
-  private stop(error: Error) { this.closed = true; this.worker.terminate(); for (const pending of this.pending.values()) pending.reject(error); this.pending.clear(); }
+  private releaseWorkerURL() { if (this.workerURL) { URL.revokeObjectURL(this.workerURL); this.workerURL = undefined; } }
+  private stop(error: Error) { this.closed = true; this.worker.terminate(); this.releaseWorkerURL(); for (const pending of this.pending.values()) pending.reject(error); this.pending.clear(); }
   private call<T>(method: string, value: unknown, signal?: AbortSignal): Promise<T> {
     if (this.closed) return Promise.reject(new Error('Engine is disposed'));
     if (signal?.aborted) return Promise.reject(new Error('Operation aborted'));
